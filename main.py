@@ -2,8 +2,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from uuid import uuid4
 from collections import defaultdict, deque
+from uuid import uuid4
 import time
 
 EMAIL = "23f1002228@ds.study.iitm.ac.in"
@@ -13,27 +13,35 @@ WINDOW = 10
 
 app = FastAPI()
 
+# -----------------------------
+# CORS
+# -----------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://app-g8swuy.example.com",
-        # Add the exam page origin here if needed.
+        "https://exam.sanand.workers.dev",
     ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# -----------------------------
+# Rate limiter storage
+# -----------------------------
 clients = defaultdict(deque)
 
-class RequestContextMiddleware(BaseHTTPMiddleware):
 
+class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
 
-        client = request.headers.get("X-Client-Id", "anonymous")
+        # -------- Rate Limiting --------
+        client_id = request.headers.get("X-Client-Id", "anonymous")
 
         now = time.time()
 
-        bucket = clients[client]
+        bucket = clients[client_id]
 
         while bucket and bucket[0] <= now - WINDOW:
             bucket.popleft()
@@ -41,14 +49,15 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         if len(bucket) >= RATE_LIMIT:
             return JSONResponse(
                 status_code=429,
-                content={"detail":"Rate limit exceeded"}
+                content={"detail": "Rate limit exceeded"},
             )
 
         bucket.append(now)
 
+        # -------- Request Context --------
         request_id = request.headers.get("X-Request-ID")
 
-        if request_id is None:
+        if not request_id:
             request_id = str(uuid4())
 
         request.state.request_id = request_id
@@ -59,12 +68,13 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
         return response
 
+
 app.add_middleware(RequestContextMiddleware)
+
 
 @app.get("/ping")
 async def ping(request: Request):
-
     return {
         "email": EMAIL,
-        "request_id": request.state.request_id
+        "request_id": request.state.request_id,
     }
