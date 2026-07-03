@@ -15,6 +15,7 @@ app = FastAPI()
 # -----------------------------
 # CORS
 # -----------------------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -22,11 +23,16 @@ app.add_middleware(
         "https://exam.sanand.workers.dev",
     ],
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["X-Request-ID"],
+    allow_methods=["GET", "OPTIONS"],
+    allow_headers=[
+        "X-Request-ID",
+        "X-Client-Id",
+        "Content-Type",
+    ],
+    expose_headers=[
+        "X-Request-ID",
+    ],
 )
-
 # -----------------------------
 # Rate limiter storage
 # -----------------------------
