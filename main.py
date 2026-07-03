@@ -39,8 +39,15 @@ app.add_middleware(
 clients = defaultdict(deque)
 
 
+
 @app.middleware("http")
 async def middleware(request: Request, call_next):
+
+    # Don't rate-limit CORS preflight
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
+    # Rest of your code...
 
     # -----------------------------
     # Rate Limiting
